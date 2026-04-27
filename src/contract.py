@@ -6,3 +6,9 @@ from src.models import Task
 class TaskSource(Protocol):
     def get_tasks(self) -> list[Task]:
         ...
+
+
+@runtime_checkable
+class TaskHandler(Protocol):
+    async def handle(self, task: Task) -> None:
+        ...

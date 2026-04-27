@@ -1,37 +1,34 @@
-## Лабораторная работа 3
+## Лабораторная работа 4: Асинхронный исполнитель задач
 
 ### Реализованные концепции:
-1. **Протокол итерации**: 
-   - Очередь полностью совместима со стандартными конструкциями Python.
-   - Поддерживается безопасный повторный обход коллекции.
-2. **Ленивые вычисления**:
-   - Реализована потоковая фильтрация с использованием `yield`.
-   - Методы-фильтры не создают промежуточных списков в памяти.
-3. **Безопасное извлечение**:
-   - Реализован метод `get_first_by_status` с ручным продвижением итератора через функцию `next()` и перехватом исключения `StopIteration`.
+1. **Асинхронная модель управления**:
+   - Использование `asyncio.Queue` для потокобезопасной передачи задач.
+2. **Контракты обработчиков**:
+   - Реализован `TaskHandler` с асинхронным методом `handle`.
+3. **Замер времени и отслеживание сбоев**:
+   - Создан асинхронный контекстный менеджер для замера времени сессии и перехвата критических сбоев.
 
-### Пример использования ленивой очереди:
+### Пример использования:
 
 ```python
-from src.queue import TaskQueue
+import asyncio
 from src.models import Task
+from src.executor import TaskExecutor
+from src.handlers import ConsoleTaskHandler
+from src.context_managers import ExecutorContextManager
 
-queue = TaskQueue()
-queue.add_task(Task(task_id="1", description="reverver vreverve", priority=5, status="ready", payload={}))
-queue.add_task(Task(task_id="2", description="erve APvevevI", priority=3, status="new", payload={}))
+async def main():
+    # Инициализация с ограничением размера очереди
+    executor = TaskExecutor(max_size=100)
+    executor.register_handler(ConsoleTaskHandler())
 
-# Ленивая фильтрация
-ready_tasks = queue.filter_by_status("ready")
-for task in ready_tasks:
-    print(task.description)
+    # Асинхронное добавление задач в очередь
+    await executor.submit_task(Task("1", "выпить 0.5 честера", 5, "new", {}))
+    await executor.submit_task(Task("2", "выпить ещё 0.5 честера", 2, "new", {}))
 
-# Безопасное получение первой подходящей задачи
-urgent_task = queue.get_first_by_status("critical")
-if urgent_task is None:
-    print("None critical")
-```
+    # Запуск через контекстный менеджер
+    async with ExecutorContextManager():
+        await executor.run()
 
-### Запуск тестов коллекции
-```bash
-python -m pytest tests/test_queue.py -v
-```
+if __name__ == "__main__":
+    asyncio.run(main())
