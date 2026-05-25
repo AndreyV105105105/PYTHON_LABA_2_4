@@ -1,10 +1,26 @@
+class TaskQueueIter:
+    def __init__(self, data):
+        self.data = data
+        self.idx = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.idx >= len(self.data):
+            raise StopIteration
+
+        item = self.data[self.idx]
+        self.idx += 1
+        return item
+
+
 class TaskQueue:
     def __init__(self):
         self._tasks = []
 
     def __iter__(self):
-        for task in self._tasks:
-            yield task
+        return TaskQueueIter(self._tasks)
 
     def add_task(self, task):
         self._tasks.append(task)
@@ -22,7 +38,6 @@ class TaskQueue:
     def get_first_by_status(self, status: str):
         generator = self.filter_by_status(status)
         try:
-            item = next(generator)
-            return item
+            return next(generator)
         except StopIteration:
             return None

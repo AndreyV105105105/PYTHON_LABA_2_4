@@ -22,20 +22,27 @@ class TaskExecutor:
         await self._queue.put(task)
         logger.info(f"Задача {task.id} добавлена в очередь.")
 
-    async def run(self):
-        """Пакетная обработка: работает, пока очередь не опустеет."""
-        logger.info("Запуск обработки задач.")
-        while not self._queue.empty():
+    async def _worker(self, worker_id: int):
+        """Воркер, который бесконечно тянет задачи из очереди и обрабатывает их."""
+        while True:
             task = await self._queue.get()
-
             for handler in self.handlers:
                 try:
                     await handler.handle(task)
                 except Exception as e:
-                    # Централизованная обработка ошибок
-                    logger.error(f"Ошибка в {type(handler).__name__} при обработке {task.id}: {e}")
+                    logger.error(f"Воркер {worker_id}: Ошибка в {type(handler).__name__} при обработке {task.id}: {e}")
 
-            # Сообщаем очереди, что задача полностью отработана
             self._queue.task_done()
+
+    async def run(self, num_workers: int = 3):
+        """Пакетная обработка: запускает пул воркеров и ждёт опустошения очереди."""
+        logger.info(f"Запуск {num_workers} асинхронных воркеров.")
+
+        workers = [asyncio.create_task(self._worker(i)) for i in range(num_workers)]
+
+        await self._queue.join()
+
+        for w in workers:
+            w.cancel()
 
         logger.info("Очередь пуста, обработка завершена.")
